@@ -4,11 +4,10 @@ import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 export default function Home() {
-  const [files, setFiles] = useState<any | null>(null);
+  const [files, setFiles] = useState<File[]| null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number[]>([]);
   const [uploadedFilesCount, setUploadedFilesCount] = useState<number>(0);
-  const [uploadingFile, setUploadingFile] = useState<any>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = e.target.files;
@@ -33,7 +32,7 @@ export default function Home() {
         );
       }
 
-      setFiles(validFiles as any);
+      setFiles(validFiles as File[]);
     }
   };
 
@@ -60,8 +59,6 @@ export default function Home() {
     formData.append("content_type", file.type);
     formData.append("optimise", "false");
 
-    setUploadingFile(file.name);
-
     const xhr = new XMLHttpRequest();
     xhr.open("POST", process.env.NEXT_PUBLIC_UPLOAD_URL!, true);
     xhr.setRequestHeader("X-API-Key", process.env.NEXT_PUBLIC_API_KEY!);
@@ -79,7 +76,6 @@ export default function Home() {
 
     xhr.onload = () => {
       if (xhr.status === 200) {
-        const data = JSON.parse(xhr.responseText);
         setUploadProgress((prevProgress) => {
           const updatedProgress = [...prevProgress];
           updatedProgress[index] = 100;
@@ -132,7 +128,7 @@ export default function Home() {
         </div>
         {files && (
           <ul className="mt-4 space-y-2 text-gray-700 text-sm flex gap-10 flex-wrap">
-            {Array.from(files).map((file: any, index) => (
+            {Array.from(files).map((file: File, index) => (
               <li
                 key={file.name}
                 className="text-gray-600 border-2 border-gray-300 p-10 rounded-md"

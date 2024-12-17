@@ -7,7 +7,6 @@ export default function Home() {
   const [files, setFiles] = useState<any | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number[]>([]);
-  const [currentFileIndex, setCurrentFileIndex] = useState<number>(0);
   const [uploadedFilesCount, setUploadedFilesCount] = useState<number>(0);
   const [uploadingFile, setUploadingFile] = useState<any>(null);
 
@@ -43,7 +42,6 @@ export default function Home() {
       setUploading(true);
       setUploadedFilesCount(0);
       setUploadProgress([]);
-      setCurrentFileIndex(0);
 
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
@@ -88,7 +86,6 @@ export default function Home() {
           return updatedProgress;
         });
         setUploadedFilesCount((prevCount) => prevCount + 1);
-        setCurrentFileIndex(index + 1);
       } else {
         toast.error(`Failed to upload ${file.name}`);
       }

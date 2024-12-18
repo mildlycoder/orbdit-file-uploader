@@ -10,7 +10,7 @@ export default function Home() {
   const [uploadProgress, setUploadProgress] = useState<number[]>([]);
   const [uploadedFilesCount, setUploadedFilesCount] = useState<number>(0);
   const [uploadedFilePreviews, setUploadedFilePreviews] = useState<string[]>([]);
-  const BUFFER_SIZE = 9
+  const BUFFER_SIZE = 5
   const MAX_FILES_UPLOAD = 500
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = e.target.files;

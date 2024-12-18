@@ -1,14 +1,16 @@
 "use client";
+import { BUILD_ID_FILE } from "next/dist/shared/lib/constants";
 import { useState } from "react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 export default function Home() {
-  const [files, setFiles] = useState<File[]| null>(null);
+  const [files, setFiles] = useState<File[] | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number[]>([]);
   const [uploadedFilesCount, setUploadedFilesCount] = useState<number>(0);
-
+  const [uploadedFilePreviews, setUploadedFilePreviews] = useState<string[]>([]);
+  const BUFFER_SIZE = 9
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = e.target.files;
 
@@ -40,58 +42,82 @@ export default function Home() {
     if (files && files.length > 0) {
       setUploading(true);
       setUploadedFilesCount(0);
-      setUploadProgress([]);
+      setUploadProgress(Array(files.length).fill(0));
+
+      const uploadBufferArray: Promise<void>[] = [];
 
       for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        await uploadFile(file, i);
+        if (uploadBufferArray.length >= BUFFER_SIZE) {
+          await Promise.race(uploadBufferArray);
+        }
+
+        const uploadTask = uploadFile(files[i], i).then(() => {
+          setUploadedFilesCount((prevCount) => prevCount + 1);
+          uploadBufferArray.splice(uploadBufferArray.indexOf(uploadTask), 1);
+        });
+
+        uploadBufferArray.push(uploadTask);
       }
 
+      await Promise.all(uploadBufferArray);
       setUploading(false);
     } else {
       toast.error("No valid files selected.");
     }
   };
 
-  const uploadFile = async (file: File, index: number) => {
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("content_type", file.type);
-    formData.append("optimise", "false");
+  const uploadFile = (file: File, index: number): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("content_type", file.type);
+      formData.append("optimise", "false");
 
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", process.env.NEXT_PUBLIC_UPLOAD_URL!, true);
-    xhr.setRequestHeader("X-API-Key", process.env.NEXT_PUBLIC_API_KEY!);
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", process.env.NEXT_PUBLIC_UPLOAD_URL!, true);
+      xhr.setRequestHeader("X-API-Key", process.env.NEXT_PUBLIC_API_KEY!);
 
-    xhr.upload.addEventListener("progress", (event) => {
-      if (event.lengthComputable) {
-        const percentComplete = (event.loaded / event.total) * 100;
-        setUploadProgress((prevProgress) => {
-          const updatedProgress = [...prevProgress];
-          updatedProgress[index] = percentComplete;
-          return updatedProgress;
-        });
-      }
+      xhr.upload.addEventListener("progress", (event) => {
+        if (event.lengthComputable) {
+          const percentComplete = (event.loaded / event.total) * 100;
+          setUploadProgress((prevProgress) => {
+            const updatedProgress = [...prevProgress];
+            updatedProgress[index] = percentComplete;
+            return updatedProgress;
+          });
+        }
+      });
+
+      xhr.onload = () => {
+        if (xhr.status === 200) {
+          const response = JSON.parse(xhr.responseText);
+          const fileUrl = `https://static.ordbit.io/${response.file_path}`;
+
+          setUploadedFilePreviews((prevPreviews) => {
+            const updatedPreviews = [...prevPreviews];
+            updatedPreviews[index] = fileUrl;
+            return updatedPreviews;
+          });
+
+          setUploadProgress((prevProgress) => {
+            const updatedProgress = [...prevProgress];
+            updatedProgress[index] = 100;
+            return updatedProgress;
+          });
+          resolve();
+        } else {
+          toast.error(`Failed to upload ${file.name}`);
+          reject();
+        }
+      };
+
+      xhr.onerror = () => {
+        toast.error(`Error uploading ${file.name}`);
+        reject();
+      };
+
+      xhr.send(formData);
     });
-
-    xhr.onload = () => {
-      if (xhr.status === 200) {
-        setUploadProgress((prevProgress) => {
-          const updatedProgress = [...prevProgress];
-          updatedProgress[index] = 100;
-          return updatedProgress;
-        });
-        setUploadedFilesCount((prevCount) => prevCount + 1);
-      } else {
-        toast.error(`Failed to upload ${file.name}`);
-      }
-    };
-
-    xhr.onerror = () => {
-      toast.error(`Error uploading ${file.name}`);
-    };
-
-    xhr.send(formData);
   };
 
   return (
@@ -103,7 +129,7 @@ export default function Home() {
           : "File Uploader"}
       </h1>
 
-      <div className="flex flex-col items-center gap-4">
+      <div className="flex flex-col items-center gap-4 w-full mx-auto">
         <div className="flex gap-10">
           <label
             htmlFor="file-upload"
@@ -127,7 +153,7 @@ export default function Home() {
           </button>
         </div>
         {files && (
-          <ul className="mt-4 space-y-2 text-gray-700 text-sm flex gap-10 flex-wrap">
+          <ul className="mt-4 space-y-2 text-gray-700 text-sm flex gap-10 flex-wrap w-full mx-auto">
             {Array.from(files).map((file: File, index) => (
               <li
                 key={file.name}
@@ -148,7 +174,16 @@ export default function Home() {
                   </div>
                 )}
                 {uploadProgress[index] === 100 && (
-                  <span className="text-white ml-2">✔️ Uploaded</span>
+                  <div className="flex flex-col items-center">
+                    <span className="text-white ml-2">✔️ Uploaded</span>
+                    {uploadedFilePreviews[index] && (
+                      <img
+                        src={uploadedFilePreviews[index]}
+                        alt="Preview"
+                        className="mt-2 max-w-full max-h-32 border rounded-md"
+                      />
+                    )}
+                  </div>
                 )}
               </li>
             ))}

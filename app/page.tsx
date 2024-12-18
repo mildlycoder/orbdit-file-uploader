@@ -11,17 +11,28 @@ export default function Home() {
   const [uploadedFilesCount, setUploadedFilesCount] = useState<number>(0);
   const [uploadedFilePreviews, setUploadedFilePreviews] = useState<string[]>([]);
   const BUFFER_SIZE = 9
+  const MAX_FILES_UPLOAD = 500
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFiles = e.target.files;
 
     if (selectedFiles) {
+      const totalSize = Array.from(selectedFiles).reduce(
+        (acc, file) => acc + file.size,
+        0
+      );
+
+      if (totalSize > MAX_FILES_UPLOAD * 1024 * 1024) {
+        toast.error("Total size of selected files exceeds 500MB limit.");
+        return;
+      }
+
       const validFiles = Array.from(selectedFiles).filter(
         (file) =>
-          file.size <= 11 * 1024 * 1024 && file.type.startsWith("image/"),
+          file.size <= 11 * 1024 * 1024 && file.type.startsWith("image/")
       );
       const invalidFiles = Array.from(selectedFiles).filter(
         (file) =>
-          file.size > 11 * 1024 * 1024 || !file.type.startsWith("image/"),
+          file.size > 11 * 1024 * 1024 || !file.type.startsWith("image/")
       );
 
       if (invalidFiles.length > 0) {
@@ -29,8 +40,8 @@ export default function Home() {
           toast.error(
             file.size > 11 * 1024 * 1024
               ? `${file.name} exceeds 10MB limit and won't be uploaded.`
-              : `${file.name} is not a valid image file and won't be uploaded.`,
-          ),
+              : `${file.name} is not a valid image file and won't be uploaded.`
+          )
         );
       }
 
